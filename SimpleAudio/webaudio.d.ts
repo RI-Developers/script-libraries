@@ -6,6 +6,10 @@ interface Window {
     msAudioContext: typeof AudioContext;
 }
 
+interface AudioNode extends EventTarget {
+
+}
+
 interface AudioContext {
     createGainNode(): GainNode;
 }
@@ -14,3 +18,4 @@ interface AudioBufferSourceNode {
     noteOn(when: number, offset?: number, duration?: number): void;
     noteOff(when: number): void;
 }
+
