@@ -1,5 +1,5 @@
 /**
- * Simple audio library.
+ * Simple audio module library.
  *
  * The MIT License (MIT)
  *
@@ -27,15 +27,29 @@
  * @author Tsuguya Touma <touma@ryukyu-i.co.jp>
  */
 ///<reference path='webaudio.d.ts' />
+/**
+ * SimpleAudioモジュール
+ * スマートフォンでも(Web Audio APIに対応している場合には)
+ * ボリュームの変更ができるようにする
+ * その他基本的な再生機能を提供する
+ *
+ * @preferred
+ */
 var SimpleAudio;
 (function (SimpleAudio) {
+    /**
+     * Web Audio APIを使用してオーディオの管理を行うクラス
+     * 優先的に使用する
+     */
     var WebAudio = (function () {
         function WebAudio(url) {
             this.type = 'webaudio';
             this.event = {
-                load: []
+                load: [],
+                ended: []
             };
-            this._sources = [];
+            this._defaultVolume = 1.0;
+            this._channels = [];
             if (typeof url === 'string') {
                 this._url = url;
             }
@@ -43,7 +57,7 @@ var SimpleAudio;
             this._ctx = new AudioCtx();
             this._ctx.createGain = this._ctx.createGain || this._ctx.createGainNode;
         }
-        WebAudio.prototype.setAudiosprite = function (conf) {
+        WebAudio.prototype.setAudioSprite = function (conf) {
             this._sprite = conf;
         };
         WebAudio.prototype.setURL = function (url) {
@@ -67,86 +81,112 @@ var SimpleAudio;
         WebAudio.prototype.play = function (options) {
             if (options === void 0) { options = {}; }
             var start_time, end_time;
-            if ('num' in options) {
-                start_time = this._sprite[options.num].st;
-                end_time = this._sprite[options.num].ed - start_time;
+            if ('track' in options) {
+                start_time = this._sprite[options.track].st;
+                end_time = this._sprite[options.track].ed - start_time;
             }
             else {
                 start_time = 0;
                 end_time = void 0;
             }
             var audio_source = this._createAudioSource();
-            this._sources.push(audio_source);
-            audio_source.source.start(this._ctx.currentTime, start_time, end_time);
+            this._channels.push(audio_source);
             if ('volume' in options) {
                 audio_source.gainNode.gain.value = options.volume;
             }
             else {
-                audio_source.gainNode.gain.value = 1.0;
+                audio_source.gainNode.gain.value = this._defaultVolume;
             }
+            audio_source.source.start(this._ctx.currentTime, start_time, end_time);
+            audio_source.connect_time = this._ctx.currentTime;
+            audio_source.start_time = start_time;
+            audio_source.end_time = end_time;
         };
-        WebAudio.prototype.stop = function (num) {
-            if (num === void 0) { num = this._sources.length - 1; }
-            this._sources[num].source.stop(0);
+        WebAudio.prototype.stop = function (track) {
+            if (track === void 0) { track = this._channels.length - 1; }
+            this._channels[track].source.stop(0);
         };
         WebAudio.prototype.volume = function (options) {
             if (options === void 0) { options = {}; }
-            if (!('num' in options)) {
-                options.num = this._sources.length - 1;
+            if (!('track' in options)) {
+                options.track = this._channels.length - 1;
             }
             if ('volume' in options) {
-                this._sources[options.num].gainNode.gain.value = options.volume;
+                this._channels[options.track].gainNode.gain.value = options.volume;
+                this._defaultVolume = options.volume;
             }
-            return this._sources[options.num].gainNode.gain.value;
+            return this._channels[options.track].gainNode.gain.value;
+        };
+        WebAudio.prototype.currentTime = function (track) {
+            if (track === void 0) { track = this._channels.length - 1; }
+            var channel = this._channels[track];
+            var elapsed = this._ctx.currentTime - channel.connect_time;
+            return elapsed;
         };
         WebAudio.prototype._createAudioSource = function () {
             var _this = this;
             var source = this._ctx.createBufferSource();
             source.start = source.start || source.noteOn;
             source.stop = source.stop || source.noteOff;
-            source.addEventListener = source.addEventListener || function (ev, callback) {
-                source['on' + ev] = callback;
-            };
             var gainNode = this._ctx.createGain();
             source.buffer = this._buffer;
-            source.addEventListener('ended', function () {
-                for (var si = 0; si > _this._sources.length; si++) {
-                    if (_this._sources[si].source === source) {
-                        _this._sources.splice(si, 1);
+            // WARNING: ended event of bug exists in chrome. Issue 403908
+            source.onended = function () {
+                for (var si = 0; si < _this._channels.length; si++) {
+                    if (_this._channels[si].source === source) {
+                        for (var ei = 0; ei < _this.event.ended.length; ei++) {
+                            _this.event.ended[ei]({ channel: ei });
+                        }
+                        // remove current channel.
+                        _this._channels.splice(si, 1);
                         break;
                     }
                 }
-            });
+            };
             source.connect(gainNode);
             gainNode.connect(this._ctx.destination);
             return { source: source, gainNode: gainNode };
         };
         return WebAudio;
     })();
+    /**
+     * HTMLAudioElementを使用してオーディオの管理を行うクラス
+     * Web Audio APIに対応していない場合に使用する
+     */
     var HTMLAudio = (function () {
         function HTMLAudio(url) {
             var _this = this;
             this.type = 'audio';
             this.event = {
-                load: []
+                load: [],
+                ended: []
             };
+            this._defaultVolume = 1.0;
             this._currentTrack = -1;
             if (typeof url === 'string') {
                 this._url = url;
             }
-            this._audio = new Audio();
-            this._audio.preload = 'none';
-            this._audio.autoplay = false;
-            this._timeCheck = function () {
-                if (_this._audio.currentTime >= _this._sprite[_this._currentTrack].ed) {
-                    _this._audio.removeEventListener('timeupdate', _this._timeCheck);
-                    _this._audio.pause();
-                    _this._audio.currentTime = 0;
-                    _this._audio.volume = 1.0;
+            var audio = new Audio();
+            audio.preload = 'none';
+            audio.autoplay = false;
+            audio.onended = function () {
+                for (var ei = 0; ei < _this.event.ended.length; ei++) {
+                    _this.event.ended[ei]();
                 }
             };
+            this._timeCheck = function () {
+                if (audio.currentTime >= _this._sprite[_this._currentTrack].ed) {
+                    audio.removeEventListener('timeupdate', _this._timeCheck);
+                    audio.pause();
+                    audio.currentTime = 0;
+                    for (var ei = 0; ei < _this.event.ended.length; ei++) {
+                        _this.event.ended[ei]();
+                    }
+                }
+            };
+            this._audio = audio;
         }
-        HTMLAudio.prototype.setAudiosprite = function (conf) {
+        HTMLAudio.prototype.setAudioSprite = function (conf) {
             this._sprite = conf;
         };
         HTMLAudio.prototype.setURL = function (url) {
@@ -154,9 +194,11 @@ var SimpleAudio;
         };
         HTMLAudio.prototype.load = function () {
             var load_events = this.event.load;
-            for (var i = 0; i < load_events.length; i++) {
-                this._audio.addEventListener('loadeddata', load_events[i]);
-            }
+            this._audio.onload = function () {
+                for (var i = 0; i < load_events.length; i++) {
+                    load_events[i]({ type: 'audio' });
+                }
+            };
             this._audio.src = this._url;
             this._audio.load();
         };
@@ -166,13 +208,16 @@ var SimpleAudio;
             if (this._currentTrack !== -1) {
                 this.stop();
             }
-            if ('num' in options) {
-                this._currentTrack = options.num;
-                audio.currentTime = this._sprite[options.num].st;
+            if ('track' in options) {
+                this._currentTrack = options.track;
+                audio.currentTime = this._sprite[options.track].st;
                 audio.addEventListener('timeupdate', this._timeCheck);
             }
             if ('volume' in options) {
                 audio.volume = options.volume;
+            }
+            else {
+                audio.volume = this._defaultVolume;
             }
             audio.play();
         };
@@ -181,15 +226,18 @@ var SimpleAudio;
             audio.removeEventListener('timeupdate', this._timeCheck);
             audio.pause();
             audio.currentTime = 0;
-            audio.volume = 1.0;
             this._currentTrack = -1;
         };
         HTMLAudio.prototype.volume = function (options) {
             if (options === void 0) { options = {}; }
             if ('volume' in options) {
                 this._audio.volume = options.volume;
+                this._defaultVolume = options.volume;
             }
             return this._audio.volume;
+        };
+        HTMLAudio.prototype.currentTime = function () {
+            return this._audio.currentTime;
         };
         return HTMLAudio;
     })();
@@ -197,9 +245,9 @@ var SimpleAudio;
      * AndroidのAOSPブラウザの中には
      * 動かないAudioContextを内包している場合がある為識別して弾く
      *
-     * @returns {boolean}
+     * @returns {boolean} AOSPブラウザの場合falseになる
      */
-    var userAgentCheck = function () {
+    var checkUserAgent = function () {
         var ua = navigator.userAgent.toLowerCase();
         if (/android/.test(ua)) {
             if (/linux; u;/.test(ua)) {
@@ -211,14 +259,19 @@ var SimpleAudio;
         }
         return true;
     };
-    function createAudio(url) {
-        if ('AudioContext' in window || ('webkitAudioContext' in window && userAgentCheck()) || 'msAudioContext' in window) {
+    /**
+     * 対応状況に合わせて適切なオーディオクラスを初期化して返却する。
+     *
+     * @param url オーディオファイルのURL
+     * @returns {*}
+     */
+    SimpleAudio.createAudio = function (url) {
+        if ('AudioContext' in window || ('webkitAudioContext' in window && checkUserAgent()) || 'msAudioContext' in window) {
             return new WebAudio(url);
         }
         else {
             return new HTMLAudio(url);
         }
-    }
-    SimpleAudio.createAudio = createAudio;
+    };
 })(SimpleAudio || (SimpleAudio = {}));
 //# sourceMappingURL=SimpleAudio.js.map

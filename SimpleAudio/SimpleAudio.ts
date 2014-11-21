@@ -1,5 +1,5 @@
 /**
- * Simple audio library.
+ * Simple audio module library.
  *
  * The MIT License (MIT)
  *
@@ -29,6 +29,7 @@
 
 ///<reference path='webaudio.d.ts' />
 
+// TODO: 一時停止機能の追加
 interface AudioInterface {
 
     /*
@@ -37,29 +38,54 @@ interface AudioInterface {
      */
 
     type:string;
-    event:{load: any};
+    event:{load:any; ended:any;};
 
-    setAudiosprite(conf):void;
+    setAudioSprite(conf):void;
     setURL(url:string):void;
 
     load():void;
-    play(options?:{num?:number; volume?:number;}):void;
+    play(options:{track?:number; volume?:number;}):void;
+    currentTime:(track?:number) => number;
 
 }
 
+interface webAudioChannel {
+    source:AudioBufferSourceNode;
+    gainNode:GainNode;
+    connect_time?:number;
+    start_time?:number;
+    end_time?:number;
+}
+
+
+/**
+ * SimpleAudioモジュール
+ * スマートフォンでも(Web Audio APIに対応している場合には)
+ * ボリュームの変更ができるようにする
+ * その他基本的な再生機能を提供する
+ *
+ * @preferred
+ */
 module SimpleAudio {
 
+
+    /**
+     * Web Audio APIを使用してオーディオの管理を行うクラス
+     * 優先的に使用する
+     */
     class WebAudio implements AudioInterface {
 
         public type = 'webaudio';
-        public event:{load:any} = {
-            load: []
+        public event = {
+            load: [],
+            ended: []
         };
 
         private _url:string;
-        private _sprite:any;
-        private _sources: {source:AudioBufferSourceNode; gainNode:GainNode;}[] = [];
+        private _sprite:{st:number; ed:number;}[];
+        private _defaultVolume = 1.0;
 
+        private _channels:webAudioChannel[] = [];
         private _ctx:AudioContext;
         private _buffer:AudioBuffer;
 
@@ -73,15 +99,17 @@ module SimpleAudio {
             this._ctx.createGain = this._ctx.createGain || this._ctx.createGainNode;
         }
 
-        public setAudiosprite(conf) {
+
+        public setAudioSprite(conf:{st:number; ed:number;}[]) {
             this._sprite = conf;
         }
 
-        public setURL(url) {
+        public setURL(url:string) {
             this._url = url;
         }
 
         public load() {
+
             var req = new XMLHttpRequest();
             req.open('GET', this._url, true);
             req.responseType = 'arraybuffer';
@@ -98,68 +126,87 @@ module SimpleAudio {
             req.send();
         }
 
-        public play(options:{num?:number; volume?:number;} = {}) {
+        public play(options:{track?:number; volume?:number;} = {}) {
 
             var start_time, end_time;
 
-            if ('num' in options) {
-                start_time = this._sprite[options.num].st;
-                end_time = this._sprite[options.num].ed - start_time;
+            if ('track' in options) {
+                start_time = this._sprite[options.track].st;
+                end_time = this._sprite[options.track].ed - start_time;
             } else {
                 start_time = 0;
                 end_time = void 0;
             }
 
             var audio_source = this._createAudioSource();
-
-            this._sources.push(audio_source);
-
-            audio_source.source.start(this._ctx.currentTime, start_time, end_time);
+            this._channels.push(audio_source);
 
             if ('volume' in options) {
                 audio_source.gainNode.gain.value = options.volume;
             } else {
-                audio_source.gainNode.gain.value = 1.0;
+                audio_source.gainNode.gain.value = this._defaultVolume;
             }
+
+            audio_source.source.start(this._ctx.currentTime, start_time, end_time);
+
+            audio_source.connect_time = this._ctx.currentTime;
+            audio_source.start_time = start_time;
+            audio_source.end_time = end_time;
+
         }
 
-        public stop(num:number = this._sources.length - 1) {
-            this._sources[num].source.stop(0);
+        public stop(track:number = this._channels.length - 1) {
+            this._channels[track].source.stop(0);
         }
 
-        public volume(options:{volume?:number; num?:number;} = {}):number {
+        public volume(options:{track?:number; volume?:number;} = {}):number {
 
-            if(!('num' in options)) {
-                options.num = this._sources.length - 1;
+            if(!('track' in options)) {
+                options.track = this._channels.length - 1;
             }
             if('volume' in options) {
-                this._sources[options.num].gainNode.gain.value = options.volume;
+                this._channels[options.track].gainNode.gain.value = options.volume;
+                this._defaultVolume = options.volume;
             }
 
-            return this._sources[options.num].gainNode.gain.value;
+            return this._channels[options.track].gainNode.gain.value;
         }
 
-        private _createAudioSource() {
+        public currentTime(track = this._channels.length - 1):number {
+
+            var channel = this._channels[track];
+            var elapsed = this._ctx.currentTime - channel.connect_time;
+
+            return elapsed;
+        }
+
+
+        private _createAudioSource():webAudioChannel {
 
             var source = this._ctx.createBufferSource();
             source.start = source.start || source.noteOn;
             source.stop = source.stop || source.noteOff;
 
-            source.addEventListener = source.addEventListener || function(ev, callback) {
-                source['on' + ev] = callback;
-            };
-
             var gainNode = this._ctx.createGain();
             source.buffer = this._buffer;
 
-            source.addEventListener('ended', () => {
-                for(var si = 0; si > this._sources.length; si++) {
-                    if(this._sources[si].source === source) {
-                        this._sources.splice(si, 1);
+            // WARNING: ended event of bug exists in chrome. Issue 403908
+            source.onended = () => {
+                for(var si = 0; si < this._channels.length; si++) {
+
+                    if(this._channels[si].source === source) {
+                        // fire user events.
+                        for(var ei = 0; ei < this.event.ended.length; ei++) {
+                            this.event.ended[ei]({channel: ei});
+                        }
+
+                        // remove current channel.
+                        this._channels.splice(si, 1);
+
                         break;
                     }
                 }
-            });
+            };
 
             source.connect(gainNode);
             gainNode.connect(this._ctx.destination);
@@ -170,62 +217,81 @@ module SimpleAudio {
     }
 
 
+    /**
+     * HTMLAudioElementを使用してオーディオの管理を行うクラス
+     * Web Audio APIに対応していない場合に使用する
+     */
     class HTMLAudio implements AudioInterface {
 
         public type = 'audio';
-        public event:{load:any} = {
-            load: []
+        public event = {
+            load: [],
+            ended: []
         };
 
         private _url:string;
         private _sprite:any;
+        private _defaultVolume = 1.0;
 
         private _audio:HTMLAudioElement;
         private _currentTrack:number = -1;
         private _timeCheck:() => void;
 
 
-
-        constructor(url?) {
+        constructor(url?:string) {
 
             if (typeof url === 'string') {
                 this._url = url;
             }
 
-            this._audio = new Audio();
-            this._audio.preload = 'none';
-            this._audio.autoplay = false;
+            var audio = new Audio();
+            audio.preload = 'none';
+            audio.autoplay = false;
+
+            audio.onended = () => {
+                for(var ei = 0; ei < this.event.ended.length; ei++) {
+                    this.event.ended[ei]();
+                }
+            };
 
             this._timeCheck = () => {
-                if(this._audio.currentTime >= this._sprite[this._currentTrack].ed) {
-                    this._audio.removeEventListener('timeupdate', this._timeCheck);
-                    this._audio.pause();
-                    this._audio.currentTime = 0;
-                    this._audio.volume = 1.0;
+                if(audio.currentTime >= this._sprite[this._currentTrack].ed) {
+                    audio.removeEventListener('timeupdate', this._timeCheck);
+                    audio.pause();
+                    audio.currentTime = 0;
+                    for(var ei = 0; ei < this.event.ended.length; ei++) {
+                        this.event.ended[ei]();
+                    }
                 }
-            }
+            };
+
+            this._audio = audio;
         }
 
-        public setAudiosprite(conf) {
+
+        public setAudioSprite(conf) {
             this._sprite = conf;
         }
 
-        public setURL(url) {
+        public setURL(url:string) {
             this._url = url;
         }
 
         public load() {
+
             var load_events = this.event.load;
 
-            for(var i = 0; i < load_events.length; i++) {
-                this._audio.addEventListener('loadeddata', load_events[i]);
-            }
+            this._audio.onload = () => {
+                for(var i = 0; i < load_events.length; i++) {
+                    load_events[i]({type: 'audio'});
+                }
+            };
 
             this._audio.src = this._url;
             this._audio.load();
         }
 
-        public play(options:{num?:number; volume?:number;} = {}) {
+        public play(options:{track?:number; volume?:number;} = {}) {
 
             var audio = this._audio;
 
@@ -233,48 +299,57 @@ module SimpleAudio {
                 this.stop();
             }
 
-            if('num' in options) {
-                this._currentTrack = options.num;
+            if('track' in options) {
+                this._currentTrack = options.track;
 
-                audio.currentTime = this._sprite[options.num].st;
+                audio.currentTime = this._sprite[options.track].st;
                 audio.addEventListener('timeupdate', this._timeCheck);
             }
 
             if('volume' in options) {
                 audio.volume = options.volume;
+            } else {
+                audio.volume = this._defaultVolume;
             }
 
             audio.play();
         }
 
         public stop() {
+
             var audio = this._audio;
 
             audio.removeEventListener('timeupdate', this._timeCheck);
             audio.pause();
             audio.currentTime = 0;
-            audio.volume = 1.0;
 
             this._currentTrack = -1;
         }
 
         public volume(options:{volume?:number;} = {}):number {
+
             if('volume' in options) {
                 this._audio.volume = options.volume;
+                this._defaultVolume = options.volume;
             }
+
             return this._audio.volume;
         }
 
+        public currentTime():number {
+            return this._audio.currentTime;
+        }
 
     }
+
 
     /**
      * AndroidのAOSPブラウザの中には
      * 動かないAudioContextを内包している場合がある為識別して弾く
      *
-     * @returns {boolean}
+     * @returns {boolean} AOSPブラウザの場合falseになる
      */
-    var userAgentCheck = () => {
+    var checkUserAgent = () => {
         var ua = navigator.userAgent.toLowerCase();
         if(/android/.test(ua)) {
             if(/linux; u;/.test(ua)) {
@@ -289,8 +364,14 @@ module SimpleAudio {
     };
 
 
-    export function createAudio(url?:string): AudioInterface {
-        if('AudioContext' in window || ('webkitAudioContext' in window && userAgentCheck()) || 'msAudioContext' in window) {
+    /**
+     * 対応状況に合わせて適切なオーディオクラスを初期化して返却する。
+     *
+     * @param url オーディオファイルのURL
+     * @returns {*}
+     */
+    export var createAudio = (url?:string):AudioInterface => {
+        if('AudioContext' in window || ('webkitAudioContext' in window && checkUserAgent()) || 'msAudioContext' in window) {
             return new WebAudio(url);
         } else {
             return new HTMLAudio(url);
