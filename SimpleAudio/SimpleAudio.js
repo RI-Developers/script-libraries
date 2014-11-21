@@ -117,9 +117,9 @@ var SimpleAudio;
             }
             return this._channels[options.track].gainNode.gain.value;
         };
-        WebAudio.prototype.currentTime = function (track) {
-            if (track === void 0) { track = this._channels.length - 1; }
-            var channel = this._channels[track];
+        WebAudio.prototype.currentTime = function (channel_number) {
+            if (channel_number === void 0) { channel_number = this._channels.length - 1; }
+            var channel = this._channels[channel_number];
             var elapsed = this._ctx.currentTime - channel.connect_time;
             return elapsed;
         };
@@ -237,7 +237,17 @@ var SimpleAudio;
             return this._audio.volume;
         };
         HTMLAudio.prototype.currentTime = function () {
-            return this._audio.currentTime;
+            if (this._currentTrack === -1) {
+                return this._audio.currentTime;
+            }
+            var start_time = this._sprite[this._currentTrack].st;
+            var current_time = this._audio.currentTime;
+            if (current_time < start_time) {
+                return 0;
+            }
+            else {
+                return current_time - start_time;
+            }
         };
         return HTMLAudio;
     })();

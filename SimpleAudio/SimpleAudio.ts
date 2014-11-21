@@ -172,9 +172,9 @@ module SimpleAudio {
             return this._channels[options.track].gainNode.gain.value;
         }
 
-        public currentTime(track = this._channels.length - 1):number {
+        public currentTime(channel_number = this._channels.length - 1):number {
 
-            var channel = this._channels[track];
+            var channel = this._channels[channel_number];
             var elapsed = this._ctx.currentTime - channel.connect_time;
 
             return elapsed;
@@ -337,7 +337,20 @@ module SimpleAudio {
         }
 
         public currentTime():number {
-            return this._audio.currentTime;
+
+            if(this._currentTrack === -1) {
+                return this._audio.currentTime;
+            }
+
+            var start_time = this._sprite[this._currentTrack].st;
+            var current_time = this._audio.currentTime;
+
+            if(current_time < start_time) {
+                return 0;
+            } else {
+                return current_time - start_time;
+            }
+
         }
 
     }
