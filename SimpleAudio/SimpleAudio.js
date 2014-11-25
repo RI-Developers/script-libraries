@@ -166,7 +166,8 @@ var SimpleAudio;
             if (typeof url === 'string') {
                 this._url = url;
             }
-            var audio = new Audio();
+            this._audio = new Audio();
+            var audio = this._audio;
             audio.preload = 'none';
             audio.autoplay = false;
             audio.onended = function () {
@@ -184,7 +185,6 @@ var SimpleAudio;
                     }
                 }
             };
-            this._audio = audio;
         }
         HTMLAudio.prototype.setAudioSprite = function (conf) {
             this._sprite = conf;
@@ -194,11 +194,13 @@ var SimpleAudio;
         };
         HTMLAudio.prototype.load = function () {
             var load_events = this.event.load;
-            this._audio.onload = function () {
+            var audio = this._audio;
+            // AOSP Browser does not work onloadeddata.
+            audio.addEventListener('loadeddata', function () {
                 for (var i = 0; i < load_events.length; i++) {
                     load_events[i]({ type: 'audio' });
                 }
-            };
+            });
             this._audio.src = this._url;
             this._audio.load();
         };
