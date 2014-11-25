@@ -104,6 +104,9 @@ var SimpleAudio;
         };
         WebAudio.prototype.stop = function (track) {
             if (track === void 0) { track = this._channels.length - 1; }
+            if (track === -1) {
+                return;
+            }
             this._channels[track].source.stop(0);
         };
         WebAudio.prototype.volume = function (options) {
@@ -119,6 +122,9 @@ var SimpleAudio;
         };
         WebAudio.prototype.currentTime = function (channel_number) {
             if (channel_number === void 0) { channel_number = this._channels.length - 1; }
+            if (channel_number === -1) {
+                return 0;
+            }
             var channel = this._channels[channel_number];
             var elapsed = this._ctx.currentTime - channel.connect_time;
             return elapsed;

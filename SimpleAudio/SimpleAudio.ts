@@ -155,7 +155,12 @@ module SimpleAudio {
 
         }
 
-        public stop(track:number = this._channels.length - 1) {
+        public stop(track = this._channels.length - 1) {
+
+            if(track === -1) {
+                return;
+            }
+
             this._channels[track].source.stop(0);
         }
 
@@ -173,6 +178,10 @@ module SimpleAudio {
         }
 
         public currentTime(channel_number = this._channels.length - 1):number {
+
+            if(channel_number === -1) {
+                return 0;
+            }
 
             var channel = this._channels[channel_number];
             var elapsed = this._ctx.currentTime - channel.connect_time;
