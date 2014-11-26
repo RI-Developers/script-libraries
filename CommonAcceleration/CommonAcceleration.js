@@ -15,17 +15,21 @@ var CommonAcceleration;
     var accelerationIncludingGravity = function () {
         var g = { x: 0, y: 0, z: 0 };
         var filter = function (event) {
-            var e = event.accelerationIncludingGravity;
+            var aig = event.accelerationIncludingGravity;
             var a = 0.8;
-            var v = {};
-            g.x = a * g.x + (1 - a) * e.x;
-            g.y = a * g.y + (1 - a) * e.y;
-            g.z = a * g.z + (1 - a) * e.z;
-            v.x = e.x - g.x;
-            v.y = e.y - g.y;
-            v.z = e.z - g.z;
-            event.acceleration = v;
-            return event;
+            var acceleration = {};
+            g.x = a * g.x + (1 - a) * aig.x;
+            g.y = a * g.y + (1 - a) * aig.y;
+            g.z = a * g.z + (1 - a) * aig.z;
+            acceleration.x = aig.x - g.x;
+            acceleration.y = aig.y - g.y;
+            acceleration.z = aig.z - g.z;
+            // accelerationプロパティがread onlyなっていて
+            // 上書きができないのに対応する為新しくオブジェクトを作る
+            return {
+                acceleration: acceleration,
+                accelerationIncludingGravity: aig
+            };
         };
         listenerFunc = function (event) { return fireEvent(filter(event)); };
         window.addEventListener('devicemotion', listenerFunc);

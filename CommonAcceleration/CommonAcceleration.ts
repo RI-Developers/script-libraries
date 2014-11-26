@@ -21,20 +21,23 @@ module CommonAcceleration {
         var g = {x:0, y:0, z:0};
 
         var filter = (event) => {
-            var e = event.accelerationIncludingGravity;
+            var aig = event.accelerationIncludingGravity;
             var a = 0.8;
-            var v:any = {};
-            g.x = a * g.x + (1 - a) * e.x;
-            g.y = a * g.y + (1 - a) * e.y;
-            g.z = a * g.z + (1 - a) * e.z;
+            var acceleration:{x?:number;y?:number;z?:number;} = {};
+            g.x = a * g.x + (1 - a) * aig.x;
+            g.y = a * g.y + (1 - a) * aig.y;
+            g.z = a * g.z + (1 - a) * aig.z;
 
-            v.x = e.x - g.x;
-            v.y = e.y - g.y;
-            v.z = e.z - g.z;
+            acceleration.x = aig.x - g.x;
+            acceleration.y = aig.y - g.y;
+            acceleration.z = aig.z - g.z;
 
-            event.acceleration = v;
-
-            return event;
+            // accelerationプロパティがread onlyなっていて
+            // 上書きができないのに対応する為新しくオブジェクトを作る
+            return {
+                acceleration: acceleration,
+                accelerationIncludingGravity: aig
+            };
         };
 
         listenerFunc = (event) => fireEvent(filter(event));
