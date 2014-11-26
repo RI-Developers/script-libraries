@@ -41,11 +41,10 @@ var CommonAcceleration;
     CommonAcceleration.listen = function () {
         window.addEventListener('devicemotion', function check(e) {
             window.removeEventListener('devicemotion', check);
-            return;
+            return selectMotion(e);
         });
     };
     CommonAcceleration.remove = function () {
         window.removeEventListener('devicemotion', listenerFunc);
     };
 })(CommonAcceleration || (CommonAcceleration = {}));
-//# sourceMappingURL=CommonAcceleration.js.map

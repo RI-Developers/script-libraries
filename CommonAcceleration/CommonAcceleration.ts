@@ -53,7 +53,7 @@ module CommonAcceleration {
     export var listen = () => {
         window.addEventListener('devicemotion', function check(e) {
             window.removeEventListener('devicemotion', check);
-            return
+            return selectMotion(e);
         });
     };
 

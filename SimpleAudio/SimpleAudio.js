@@ -292,4 +292,3 @@ var SimpleAudio;
         }
     };
 })(SimpleAudio || (SimpleAudio = {}));
-//# sourceMappingURL=SimpleAudio.js.map
