@@ -4,6 +4,9 @@ module CommonAcceleration {
     export var events = [];
 
     var listenerFunc:any;
+    var cache:{x:number;y:number;z:number;};
+
+    var cacheCheck = (acc) => acc.x === cache.x && acc.y === cache.y && acc.z === cache.z;
 
     var fireEvent = (event) => {
         for(var i = 0; i < events.length; i++) {
@@ -12,7 +15,10 @@ module CommonAcceleration {
     };
 
     var acceleration = () => {
-        listenerFunc = (event) => fireEvent(event);
+        listenerFunc = (event) => {
+            if(!cacheCheck(event.acceleration)) return;
+            fireEvent(event);
+        };
 
         window.addEventListener('devicemotion', listenerFunc);
     };
@@ -36,19 +42,25 @@ module CommonAcceleration {
             // 上書きができないのに対応する為新しくオブジェクトを作る
             return {
                 acceleration: acceleration,
-                accelerationIncludingGravity: aig
+                accelerationIncludingGravity: aig,
+                interval: event.interval || -1
             };
         };
 
-        listenerFunc = (event) => fireEvent(filter(event));
+        listenerFunc = (event) => {
+            if(!cacheCheck(event.accelerationIncludingGravity)) return;
+            fireEvent(filter(event));
+        };
 
         window.addEventListener('devicemotion', listenerFunc);
     };
 
     var selectMotion = (e) => {
         if('acceleration' in e && e.acceleration) {
+            cache = e.acceleration;
             acceleration();
         } else {
+            cache = e.accelerationIncludingGravity;
             accelerationIncludingGravity();
         }
     };

@@ -3,13 +3,19 @@ var CommonAcceleration;
     CommonAcceleration.canDeviceMotion = 'ondevicemotion' in window;
     CommonAcceleration.events = [];
     var listenerFunc;
+    var cache;
+    var cacheCheck = function (acc) { return acc.x === cache.x && acc.y === cache.y && acc.z === cache.z; };
     var fireEvent = function (event) {
         for (var i = 0; i < CommonAcceleration.events.length; i++) {
             CommonAcceleration.events[i](event);
         }
     };
     var acceleration = function () {
-        listenerFunc = function (event) { return fireEvent(event); };
+        listenerFunc = function (event) {
+            if (!cacheCheck(event.acceleration))
+                return;
+            fireEvent(event);
+        };
         window.addEventListener('devicemotion', listenerFunc);
     };
     var accelerationIncludingGravity = function () {
@@ -28,17 +34,24 @@ var CommonAcceleration;
             // 上書きができないのに対応する為新しくオブジェクトを作る
             return {
                 acceleration: acceleration,
-                accelerationIncludingGravity: aig
+                accelerationIncludingGravity: aig,
+                interval: event.interval || -1
             };
         };
-        listenerFunc = function (event) { return fireEvent(filter(event)); };
+        listenerFunc = function (event) {
+            if (!cacheCheck(event.accelerationIncludingGravity))
+                return;
+            fireEvent(filter(event));
+        };
         window.addEventListener('devicemotion', listenerFunc);
     };
     var selectMotion = function (e) {
         if ('acceleration' in e && e.acceleration) {
+            cache = e.acceleration;
             acceleration();
         }
         else {
+            cache = e.accelerationIncludingGravity;
             accelerationIncludingGravity();
         }
     };
