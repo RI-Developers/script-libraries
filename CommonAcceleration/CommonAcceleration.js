@@ -12,7 +12,7 @@ var CommonAcceleration;
     };
     var acceleration = function () {
         listenerFunc = function (event) {
-            if (!cacheCheck(event.acceleration))
+            if (cacheCheck(event.acceleration))
                 return;
             fireEvent(event);
         };
@@ -39,7 +39,7 @@ var CommonAcceleration;
             };
         };
         listenerFunc = function (event) {
-            if (!cacheCheck(event.accelerationIncludingGravity))
+            if (cacheCheck(event.accelerationIncludingGravity))
                 return;
             fireEvent(filter(event));
         };

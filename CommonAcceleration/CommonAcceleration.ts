@@ -16,7 +16,7 @@ module CommonAcceleration {
 
     var acceleration = () => {
         listenerFunc = (event) => {
-            if(!cacheCheck(event.acceleration)) return;
+            if(cacheCheck(event.acceleration)) return;
             fireEvent(event);
         };
 
@@ -48,7 +48,7 @@ module CommonAcceleration {
         };
 
         listenerFunc = (event) => {
-            if(!cacheCheck(event.accelerationIncludingGravity)) return;
+            if(cacheCheck(event.accelerationIncludingGravity)) return;
             fireEvent(filter(event));
         };
 
