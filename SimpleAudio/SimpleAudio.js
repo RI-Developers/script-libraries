@@ -97,7 +97,12 @@ var SimpleAudio;
             else {
                 audio_source.gainNode.gain.value = this._defaultVolume;
             }
-            audio_source.source.start(this._ctx.currentTime, start_time, end_time);
+            if (typeof end_time === 'undefined') {
+                audio_source.source.start(this._ctx.currentTime, start_time);
+            }
+            else {
+                audio_source.source.start(this._ctx.currentTime, start_time, end_time);
+            }
             audio_source.connect_time = this._ctx.currentTime;
             audio_source.start_time = start_time;
             audio_source.end_time = end_time;
