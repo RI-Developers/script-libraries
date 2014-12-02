@@ -88,15 +88,18 @@ module SimpleAudio {
         private _channels:webAudioChannel[] = [];
         private _ctx:AudioContext;
         private _buffer:AudioBuffer;
+        private _response:any;
 
 
         constructor(url?:string) {
-            if (typeof url === 'string') {
-                this._url = url;
-            }
+
             var AudioCtx = window.AudioContext || window.webkitAudioContext || window.msAudioContext;
             this._ctx = new AudioCtx();
             this._ctx.createGain = this._ctx.createGain || this._ctx.createGainNode;
+
+            if (typeof url === 'string') {
+                this.setURL(url);
+            }
         }
 
 
@@ -106,24 +109,28 @@ module SimpleAudio {
 
         public setURL(url:string) {
             this._url = url;
+            this._sendRequest();
         }
 
         public load() {
 
-            var req = new XMLHttpRequest();
-            req.open('GET', this._url, true);
-            req.responseType = 'arraybuffer';
+            if(/iPhone|iPod|iPad/.test(navigator.userAgent)) {
+                this._buffer = this._ctx.createBuffer(this._response, false);
 
-            req.onload = () => {
-                this._ctx.decodeAudioData(req.response,(buffer:AudioBuffer) => {
+                for (var i = 0; i < this.event.load.length; i++) {
+                    this.event.load[i]({type: 'webaudio'});
+                }
+
+                this.play({track: -1, volume: 0});
+            } else {
+                this._ctx.decodeAudioData(this._response,(buffer:AudioBuffer) => {
                     this._buffer = buffer;
 
                     for (var i = 0; i < this.event.load.length; i++) {
                         this.event.load[i]({type: 'webaudio'});
                     }
                 });
-            };
-            req.send();
+            }
         }
 
         public play(options:{track?:number; volume?:number;} = {}) {
@@ -139,7 +146,10 @@ module SimpleAudio {
             }
 
             var audio_source = this._createAudioSource();
-            this._channels.push(audio_source);
+
+            if('track' in options && options.track > -1) {
+                this._channels.push(audio_source);
+            }
 
             if ('volume' in options) {
                 audio_source.gainNode.gain.value = options.volume;
@@ -147,7 +157,7 @@ module SimpleAudio {
                 audio_source.gainNode.gain.value = this._defaultVolume;
             }
 
-            if(typeof end_time === 'undefined') {
+            if(end_time === void 0) {
                 audio_source.source.start(this._ctx.currentTime, start_time);
             } else {
                 audio_source.source.start(this._ctx.currentTime, start_time, end_time);
@@ -193,6 +203,16 @@ module SimpleAudio {
             return elapsed;
         }
 
+        private _sendRequest() {
+            var req = new XMLHttpRequest();
+            req.open('GET', this._url, true);
+            req.responseType = 'arraybuffer';
+
+            req.onload = () => {
+                this._response = req.response;
+            };
+            req.send();
+        }
 
         private _createAudioSource():webAudioChannel {
 
@@ -317,7 +337,9 @@ module SimpleAudio {
             if('track' in options) {
                 this._currentTrack = options.track;
 
-                audio.currentTime = this._sprite[options.track].st;
+                if(this._sprite[options.track].st) {
+                    audio.currentTime = this._sprite[options.track].st;
+                }
                 audio.addEventListener('timeupdate', this._timeCheck);
             }
 
