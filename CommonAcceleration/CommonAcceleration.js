@@ -125,6 +125,7 @@ var CommonAcceleration;
             return {
                 acceleration: acc,
                 accelerationIncludingGravity: aig,
+                rotationRate: event.rotationRate || { alpha: 0, beta: 0, gamma: 0 },
                 interval: event.interval || -1
             };
         };
