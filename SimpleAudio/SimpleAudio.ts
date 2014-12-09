@@ -1,5 +1,5 @@
 /**
- * Simple audio module library.
+ * Simple audio module.
  *
  * The MIT License (MIT)
  *
