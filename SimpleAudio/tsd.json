@@ -6,7 +6,10 @@
   "bundle": "typings/tsd.d.ts",
   "installed": {
     "webaudioapi/waa.d.ts": {
-      "commit": "7c194584f39e29c7f150e0bfc1686a796efc19be"
+      "commit": "b3324f69165309a3ea2bd02fd10e97841bf07c83"
+    },
+    "webrtc/MediaStream.d.ts": {
+      "commit": "b3324f69165309a3ea2bd02fd10e97841bf07c83"
     }
   }
 }

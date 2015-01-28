@@ -6,10 +6,6 @@ interface Window {
     msAudioContext: typeof AudioContext;
 }
 
-interface AudioNode extends EventTarget {
-
-}
-
 interface AudioContext {
     createGainNode(): GainNode;
 }
