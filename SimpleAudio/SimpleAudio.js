@@ -291,17 +291,14 @@ var SimpleAudio;
     var checkUserAgent = function () {
         var ua = navigator.userAgent.toLowerCase();
         if (/android/.test(ua)) {
-            if (/linux; u;/.test(ua)) {
-                return false;
-            }
-            if (/chrome/.test(ua) && /version/.test(ua)) {
+            if (/linux; u;|version.+chrome/.test(ua)) {
                 return false;
             }
         }
         return true;
     };
     /**
-     * 対応状況に合わせて適切なオーディオクラスを初期化して返却する。
+     * 対応状況に合わせて適切なオーディオクラスを選択、初期化して返却する。
      *
      * @param url オーディオファイルのURL
      * @returns {*}

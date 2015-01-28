@@ -34,13 +34,13 @@ interface AudioInterface {
 
     /*
      * private _url:string;
-     * private _sprite:any;
+     * private _sprite:{st:number; ed:number;}[];
      */
 
     type:string;
     event:{load:any; ended:any;};
 
-    setAudioSprite(conf):void;
+    setAudioSprite(conf:{st:number; ed:number;}[]):void;
     setURL(url:string):void;
 
     load():void;
@@ -263,7 +263,7 @@ module SimpleAudio {
         };
 
         private _url:string;
-        private _sprite:any;
+        private _sprite:{st:number; ed:number;}[];
         private _defaultVolume = 1.0;
 
         private _audio:HTMLAudioElement;
@@ -303,7 +303,7 @@ module SimpleAudio {
         }
 
 
-        public setAudioSprite(conf) {
+        public setAudioSprite(conf:{st:number; ed:number;}[]) {
             this._sprite = conf;
         }
 
@@ -402,10 +402,7 @@ module SimpleAudio {
     var checkUserAgent = () => {
         var ua = navigator.userAgent.toLowerCase();
         if(/android/.test(ua)) {
-            if(/linux; u;/.test(ua)) {
-                return false;
-            }
-            if(/chrome/.test(ua) && /version/.test(ua)) {
+            if(/linux; u;|version.+chrome/.test(ua)) {
                 return false;
             }
         }
@@ -415,7 +412,7 @@ module SimpleAudio {
 
 
     /**
-     * 対応状況に合わせて適切なオーディオクラスを初期化して返却する。
+     * 対応状況に合わせて適切なオーディオクラスを選択、初期化して返却する。
      *
      * @param url オーディオファイルのURL
      * @returns {*}
