@@ -145,17 +145,16 @@ module CommonAcceleration {
         var filter = (event:DeviceMotionEvent) => {
             var aig = event.accelerationIncludingGravity;
             var alpha = 0.9;
-            var acc:{x?:number;y?:number;z?:number;} = {};
             g.x = alpha * g.x + (1 - alpha) * aig.x;
             g.y = alpha * g.y + (1 - alpha) * aig.y;
             g.z = alpha * g.z + (1 - alpha) * aig.z;
 
-            acc.x = aig.x - g.x;
-            acc.y = aig.y - g.y;
-            acc.z = aig.z - g.z;
-
             return <DeviceMotionEvent>{
-                acceleration: acc,
+                acceleration: {
+                    x: aig.x - g.x,
+                    y: aig.y - g.y,
+                    z: aig.z - g.z
+                },
                 accelerationIncludingGravity: aig,
                 rotationRate: event.rotationRate || {alpha:0, beta:0, gamma:0},
                 interval: event.interval || -1
