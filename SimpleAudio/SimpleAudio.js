@@ -37,6 +37,7 @@
  */
 var SimpleAudio;
 (function (SimpleAudio) {
+    var AudioContext = window.AudioContext || window.webkitAudioContext || window.msAudioContext || void 0;
     /**
      * Web Audio APIを使用してオーディオの管理を行うクラス
      * 優先的に使用する
@@ -50,8 +51,7 @@ var SimpleAudio;
             };
             this._defaultVolume = 1.0;
             this._channels = [];
-            var AudioCtx = window.AudioContext || window.webkitAudioContext || window.msAudioContext;
-            this._ctx = new AudioCtx();
+            this._ctx = new AudioContext();
             this._ctx.createGain = this._ctx.createGain || this._ctx.createGainNode;
             if (typeof url === 'string') {
                 this.setURL(url);
@@ -66,7 +66,7 @@ var SimpleAudio;
         };
         WebAudio.prototype.load = function () {
             var _this = this;
-            if (typeof this._response !== 'undefined') {
+            if (this._response !== void 0) {
                 if (/iPhone|iPod|iPad/.test(navigator.userAgent)) {
                     this._buffer = this._ctx.createBuffer(this._response, false);
                     for (var i = 0; i < this.event.load.length; i++) {
@@ -312,7 +312,7 @@ var SimpleAudio;
      * @returns {*}
      */
     SimpleAudio.createAudio = function (url) {
-        if ('AudioContext' in window || ('webkitAudioContext' in window && checkUserAgent()) || 'msAudioContext' in window) {
+        if (AudioContext && checkUserAgent()) {
             return new WebAudio(url);
         }
         else {

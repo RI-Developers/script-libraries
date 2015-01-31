@@ -68,6 +68,7 @@ interface webAudioChannel {
  */
 module SimpleAudio {
 
+    var AudioContext = window.AudioContext || window.webkitAudioContext || window.msAudioContext || void 0;
 
     /**
      * Web Audio APIを使用してオーディオの管理を行うクラス
@@ -94,8 +95,7 @@ module SimpleAudio {
 
         constructor(url?:string) {
 
-            var AudioCtx = window.AudioContext || window.webkitAudioContext || window.msAudioContext;
-            this._ctx = new AudioCtx();
+            this._ctx = new AudioContext();
             this._ctx.createGain = this._ctx.createGain || this._ctx.createGainNode;
 
             if (typeof url === 'string') {
@@ -115,7 +115,7 @@ module SimpleAudio {
 
         public load() {
 
-            if(typeof this._response !== 'undefined') {
+            if(this._response !== void 0) {
 
                 if (/iPhone|iPod|iPad/.test(navigator.userAgent)) {
                     this._buffer = this._ctx.createBuffer(this._response, false);
@@ -430,7 +430,7 @@ module SimpleAudio {
      * @returns {*}
      */
     export var createAudio = (url?:string):AudioInterface => {
-        if('AudioContext' in window || ('webkitAudioContext' in window && checkUserAgent()) || 'msAudioContext' in window) {
+        if(AudioContext && checkUserAgent()) {
             return new WebAudio(url);
         } else {
             return new HTMLAudio(url);
