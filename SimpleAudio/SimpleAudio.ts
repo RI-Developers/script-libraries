@@ -82,6 +82,7 @@ module SimpleAudio {
         };
 
         private _url:string;
+        private _request:XMLHttpRequest;
         private _sprite:{st:number; ed:number;}[];
         private _defaultVolume = 1.0;
 
@@ -114,22 +115,33 @@ module SimpleAudio {
 
         public load() {
 
-            if(/iPhone|iPod|iPad/.test(navigator.userAgent)) {
-                this._buffer = this._ctx.createBuffer(this._response, false);
+            if(typeof this._response !== 'undefined') {
 
-                for (var i = 0; i < this.event.load.length; i++) {
-                    this.event.load[i]({type: 'webaudio'});
-                }
-
-                this.play({track: -1, volume: 0});
-            } else {
-                this._ctx.decodeAudioData(this._response,(buffer:AudioBuffer) => {
-                    this._buffer = buffer;
+                if (/iPhone|iPod|iPad/.test(navigator.userAgent)) {
+                    this._buffer = this._ctx.createBuffer(this._response, false);
 
                     for (var i = 0; i < this.event.load.length; i++) {
                         this.event.load[i]({type: 'webaudio'});
                     }
-                });
+
+                    this.play({track: -1, volume: 0});
+                } else {
+                    this._ctx.decodeAudioData(this._response, (buffer:AudioBuffer) => {
+                        this._buffer = buffer;
+
+                        for (var i = 0; i < this.event.load.length; i++) {
+                            this.event.load[i]({type: 'webaudio'});
+                        }
+                    });
+                }
+
+            } else {
+
+                this._request.onload = () => {
+                    this._response = this._request.response;
+                    this.load();
+                };
+
             }
         }
 
@@ -204,14 +216,14 @@ module SimpleAudio {
         }
 
         private _sendRequest() {
-            var req = new XMLHttpRequest();
-            req.open('GET', this._url, true);
-            req.responseType = 'arraybuffer';
+            this._request = new XMLHttpRequest();
+            this._request.open('GET', this._url, true);
+            this._request.responseType = 'arraybuffer';
 
-            req.onload = () => {
-                this._response = req.response;
+            this._request.onload = () => {
+                this._response = this._request.response;
             };
-            req.send();
+            this._request.send();
         }
 
         private _createAudioSource():webAudioChannel {

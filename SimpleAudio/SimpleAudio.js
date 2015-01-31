@@ -66,20 +66,28 @@ var SimpleAudio;
         };
         WebAudio.prototype.load = function () {
             var _this = this;
-            if (/iPhone|iPod|iPad/.test(navigator.userAgent)) {
-                this._buffer = this._ctx.createBuffer(this._response, false);
-                for (var i = 0; i < this.event.load.length; i++) {
-                    this.event.load[i]({ type: 'webaudio' });
+            if (typeof this._response !== 'undefined') {
+                if (/iPhone|iPod|iPad/.test(navigator.userAgent)) {
+                    this._buffer = this._ctx.createBuffer(this._response, false);
+                    for (var i = 0; i < this.event.load.length; i++) {
+                        this.event.load[i]({ type: 'webaudio' });
+                    }
+                    this.play({ track: -1, volume: 0 });
                 }
-                this.play({ track: -1, volume: 0 });
+                else {
+                    this._ctx.decodeAudioData(this._response, function (buffer) {
+                        _this._buffer = buffer;
+                        for (var i = 0; i < _this.event.load.length; i++) {
+                            _this.event.load[i]({ type: 'webaudio' });
+                        }
+                    });
+                }
             }
             else {
-                this._ctx.decodeAudioData(this._response, function (buffer) {
-                    _this._buffer = buffer;
-                    for (var i = 0; i < _this.event.load.length; i++) {
-                        _this.event.load[i]({ type: 'webaudio' });
-                    }
-                });
+                this._request.onload = function () {
+                    _this._response = _this._request.response;
+                    _this.load();
+                };
             }
         };
         WebAudio.prototype.play = function (options) {
@@ -142,13 +150,13 @@ var SimpleAudio;
         };
         WebAudio.prototype._sendRequest = function () {
             var _this = this;
-            var req = new XMLHttpRequest();
-            req.open('GET', this._url, true);
-            req.responseType = 'arraybuffer';
-            req.onload = function () {
-                _this._response = req.response;
+            this._request = new XMLHttpRequest();
+            this._request.open('GET', this._url, true);
+            this._request.responseType = 'arraybuffer';
+            this._request.onload = function () {
+                _this._response = _this._request.response;
             };
-            req.send();
+            this._request.send();
         };
         WebAudio.prototype._createAudioSource = function () {
             var _this = this;
