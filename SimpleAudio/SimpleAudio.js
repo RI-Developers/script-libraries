@@ -116,7 +116,7 @@ var SimpleAudio;
         WebAudio.prototype.play = function (options) {
             if (options === void 0) { options = {}; }
             var start_time, end_time;
-            if ('track' in options) {
+            if (options.track !== void 0) {
                 start_time = this._sprite[options.track].st;
                 end_time = this._sprite[options.track].ed - start_time;
             }
@@ -125,10 +125,13 @@ var SimpleAudio;
                 end_time = void 0;
             }
             var audio_source = this._createAudioSource();
-            if ('track' in options && options.track > -1) {
+            if (options.track !== void 0 && options.track > -1) {
                 this._channels.push(audio_source);
             }
-            if ('volume' in options) {
+            if (options.loop !== void 0) {
+                audio_source.source.loop = options.loop;
+            }
+            if (options.volume !== void 0) {
                 audio_source.gainNode.gain.value = options.volume;
             }
             else {
@@ -187,6 +190,13 @@ var SimpleAudio;
             var channel = this._channels[channel_number];
             var elapsed = this._ctx.currentTime - channel.connect_time;
             return elapsed;
+        };
+        /**
+         * 仮実装の為、現時点ではWeb Audio API使用時のみ
+         * @returns {number}
+         */
+        WebAudio.prototype.countChannels = function () {
+            return this._channels.length;
         };
         /**
          * XHRでとってくる
@@ -303,6 +313,9 @@ var SimpleAudio;
                     audio.currentTime = this._sprite[options.track].st;
                 }
                 audio.addEventListener('timeupdate', this._timeCheck);
+            }
+            if (options.loop) {
+                audio.loop = options.loop;
             }
             if ('volume' in options) {
                 audio.volume = options.volume;
