@@ -41,8 +41,13 @@ var SimpleAudio;
     /**
      * Web Audio APIを使用してオーディオの管理を行うクラス
      * 優先的に使用する
+     * TODO: ボリュームにバグがあった気がするから直す
      */
     var WebAudio = (function () {
+        /**
+         * url入れとくとXHRで内容とってきて再生準備しとくよ！
+         * @param url 再生するサウンド
+         */
         function WebAudio(url) {
             this.type = 'webaudio';
             this.event = {
@@ -57,13 +62,26 @@ var SimpleAudio;
                 this.setURL(url);
             }
         }
+        /**
+         * スプライト使用する場合のみ指定する
+         * TODO: https://github.com/tonistiigi/audiosprite ここの形式で入れられるようにする
+         * @param conf {st:再生開始時間, ed: 再生終了時間}の配列
+         */
         WebAudio.prototype.setAudioSprite = function (conf) {
             this._sprite = conf;
         };
+        /**
+         * XHRでとってくるよ！
+         * @param url 再生するサウンド
+         */
         WebAudio.prototype.setURL = function (url) {
             this._url = url;
             this._sendRequest();
         };
+        /**
+         * XHRでの取得が完了していない場合は終わった後にロードを開始する
+         * 完了したらendedイベントが発火
+         */
         WebAudio.prototype.load = function () {
             var _this = this;
             if (this._response !== void 0) {
@@ -87,9 +105,14 @@ var SimpleAudio;
                 this._request.onload = function () {
                     _this._response = _this._request.response;
                     _this.load();
+                    _this._request = null;
                 };
             }
         };
+        /**
+         * 再生開始
+         * @param options {track: スプライト使用時は順番をいれる。デフォルトは最初。, volume: ボリューム}
+         */
         WebAudio.prototype.play = function (options) {
             if (options === void 0) { options = {}; }
             var start_time, end_time;
@@ -121,6 +144,12 @@ var SimpleAudio;
             audio_source.start_time = start_time;
             audio_source.end_time = end_time;
         };
+        /**
+         * 再生終了
+         * trackとか誰に需要があるのだろうか・・・。
+         * まあtrackの管理が上手くできる仕組みが思いついたら役に立つはず！
+         * @param track
+         */
         WebAudio.prototype.stop = function (track) {
             if (track === void 0) { track = this._channels.length - 1; }
             if (track === -1) {
@@ -128,6 +157,12 @@ var SimpleAudio;
             }
             this._channels[track].source.stop(0);
         };
+        /**
+         * ボリュームコントロール
+         * TODO: オプションのトラック指定していないときは全てに適応させる
+         * @param options
+         * @returns {number}
+         */
         WebAudio.prototype.volume = function (options) {
             if (options === void 0) { options = {}; }
             if (!('track' in options)) {
@@ -139,6 +174,11 @@ var SimpleAudio;
             }
             return this._channels[options.track].gainNode.gain.value;
         };
+        /**
+         * 現在時間
+         * @param channel_number
+         * @returns {number}
+         */
         WebAudio.prototype.currentTime = function (channel_number) {
             if (channel_number === void 0) { channel_number = this._channels.length - 1; }
             if (channel_number === -1) {
@@ -148,6 +188,11 @@ var SimpleAudio;
             var elapsed = this._ctx.currentTime - channel.connect_time;
             return elapsed;
         };
+        /**
+         * XHRでとってくる
+         * エラーは考えてない！
+         * @private
+         */
         WebAudio.prototype._sendRequest = function () {
             var _this = this;
             this._request = new XMLHttpRequest();
@@ -155,9 +200,15 @@ var SimpleAudio;
             this._request.responseType = 'arraybuffer';
             this._request.onload = function () {
                 _this._response = _this._request.response;
+                _this._request = null;
             };
             this._request.send();
         };
+        /**
+         * track製造部分
+         * @returns {{source: AudioBufferSourceNode, gainNode: GainNode}}
+         * @private
+         */
         WebAudio.prototype._createAudioSource = function () {
             var _this = this;
             var source = this._ctx.createBufferSource();
@@ -187,6 +238,7 @@ var SimpleAudio;
     /**
      * HTMLAudioElementを使用してオーディオの管理を行うクラス
      * Web Audio APIに対応していない場合に使用する
+     * TODO: Videoも使用したほうがいいんだろうな・・・・
      */
     var HTMLAudio = (function () {
         function HTMLAudio(url) {

@@ -32,11 +32,6 @@
 // TODO: 一時停止機能の追加
 interface AudioInterface {
 
-    /*
-     * private _url:string;
-     * private _sprite:{st:number; ed:number;}[];
-     */
-
     type:string;
     event:{load:any; ended:any;};
 
@@ -73,6 +68,7 @@ module SimpleAudio {
     /**
      * Web Audio APIを使用してオーディオの管理を行うクラス
      * 優先的に使用する
+     * TODO: ボリュームにバグがあった気がするから直す
      */
     class WebAudio implements AudioInterface {
 
@@ -92,7 +88,10 @@ module SimpleAudio {
         private _buffer:AudioBuffer;
         private _response:any;
 
-
+        /**
+         * url入れとくとXHRで内容とってきて再生準備しとくよ！
+         * @param url 再生するサウンド
+         */
         constructor(url?:string) {
 
             this._ctx = new AudioContext();
@@ -103,16 +102,28 @@ module SimpleAudio {
             }
         }
 
-
+        /**
+         * スプライト使用する場合のみ指定する
+         * TODO: https://github.com/tonistiigi/audiosprite ここの形式で入れられるようにする
+         * @param conf {st:再生開始時間, ed: 再生終了時間}の配列
+         */
         public setAudioSprite(conf:{st:number; ed:number;}[]) {
             this._sprite = conf;
         }
 
+        /**
+         * XHRでとってくるよ！
+         * @param url 再生するサウンド
+         */
         public setURL(url:string) {
             this._url = url;
             this._sendRequest();
         }
 
+        /**
+         * XHRでの取得が完了していない場合は終わった後にロードを開始する
+         * 完了したらendedイベントが発火
+         */
         public load() {
 
             if(this._response !== void 0) {
@@ -140,11 +151,17 @@ module SimpleAudio {
                 this._request.onload = () => {
                     this._response = this._request.response;
                     this.load();
+
+                    this._request = null;
                 };
 
             }
         }
 
+        /**
+         * 再生開始
+         * @param options {track: スプライト使用時は順番をいれる。デフォルトは最初。, volume: ボリューム}
+         */
         public play(options:{track?:number; volume?:number;} = {}) {
 
             var start_time, end_time;
@@ -181,6 +198,12 @@ module SimpleAudio {
 
         }
 
+        /**
+         * 再生終了
+         * trackとか誰に需要があるのだろうか・・・。
+         * まあtrackの管理が上手くできる仕組みが思いついたら役に立つはず！
+         * @param track
+         */
         public stop(track = this._channels.length - 1) {
 
             if(track === -1) {
@@ -190,6 +213,12 @@ module SimpleAudio {
             this._channels[track].source.stop(0);
         }
 
+        /**
+         * ボリュームコントロール
+         * TODO: オプションのトラック指定していないときは全てに適応させる
+         * @param options
+         * @returns {number}
+         */
         public volume(options:{track?:number; volume?:number;} = {}):number {
 
             if(!('track' in options)) {
@@ -203,6 +232,11 @@ module SimpleAudio {
             return this._channels[options.track].gainNode.gain.value;
         }
 
+        /**
+         * 現在時間
+         * @param channel_number
+         * @returns {number}
+         */
         public currentTime(channel_number = this._channels.length - 1):number {
 
             if(channel_number === -1) {
@@ -215,6 +249,11 @@ module SimpleAudio {
             return elapsed;
         }
 
+        /**
+         * XHRでとってくる
+         * エラーは考えてない！
+         * @private
+         */
         private _sendRequest() {
             this._request = new XMLHttpRequest();
             this._request.open('GET', this._url, true);
@@ -222,10 +261,16 @@ module SimpleAudio {
 
             this._request.onload = () => {
                 this._response = this._request.response;
+                this._request = null;
             };
             this._request.send();
         }
 
+        /**
+         * track製造部分
+         * @returns {{source: AudioBufferSourceNode, gainNode: GainNode}}
+         * @private
+         */
         private _createAudioSource():webAudioChannel {
 
             var source = this._ctx.createBufferSource();
@@ -265,6 +310,7 @@ module SimpleAudio {
     /**
      * HTMLAudioElementを使用してオーディオの管理を行うクラス
      * Web Audio APIに対応していない場合に使用する
+     * TODO: Videoも使用したほうがいいんだろうな・・・・
      */
     class HTMLAudio implements AudioInterface {
 
