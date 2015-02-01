@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>SimpleAudio Demo</title>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css"/>
+    <style>
+        button {
+            min-width: 100px;
+        }
+        .dp-none {
+            display: none;
+        }
+        .m-top20 {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>SimpleAudio Demo</h1>
+
+        <div id="playbox" class="center-block m-top20">
+            <button id="load" class="btn btn-primary btn-lg dp-none">Load</button>
+            <button id="play" class="btn btn-primary btn-lg" disabled>Play</button>
+            <button id="pause" class="btn btn-warning btn-lg dp-none" disabled>Pause</button>
+            <button id="stop" class="btn btn-danger btn-lg dp-none" disabled>Stop</button>
+
+            <div id="control" class="dp-none m-top20">
+                <button id="effect1" class="btn btn-lg">Effect 1</button>
+                <button id="effect2" class="btn btn-lg">Effect 2</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>
+    <script src="../SimpleAudio.js"></script>
+    <script>
+        $(document).ready(function() {
+            'use strict';
+            var bgm_channel = 0;
+            var audio = SimpleAudio.createAudio('demo.mp3');
+            var sprite = [
+                {st: 0,  ed: 33.14938775510204},
+                {st: 35, ed: 38.604897959183674},
+                {st: 40, ed: 43.97061224489796}
+            ];
+
+            audio.setAudioSprite(sprite);
+
+            var handleLoad = function() {
+                var play_btn = document.querySelector('#play');
+                var stop_btn = document.querySelector('#stop');
+
+                var play = function() {
+                    play_btn.onclick = null;
+                    play_btn.disabled = true;
+                    audio.play({track: 0, loop: true});
+                    if(audio.type === 'webaudio') {
+                        bgm_channel = audio.countChannels() - 1;
+                        window.a = audio;
+                    }
+                    stop_btn.disabled = false;
+                    stop_btn.onclick = stop;
+                    document.querySelector('#control').classList.remove('dp-none');
+                };
+
+                var stop =  function() {
+                    stop_btn.onclick = null;
+                    stop_btn.disabled = true;
+                    audio.stop(bgm_channel);
+                    play_btn.disabled = false;
+                    play_btn.onclick = play;
+                    document.querySelector('#control').classList.add('dp-none');
+                };
+
+                play_btn.onclick = play;
+
+                document.querySelector('#effect1').onclick = function() {
+                    audio.play({track: 1});
+                };
+                document.querySelector('#effect2').onclick = function() {
+                    audio.play({track: 2});
+                };
+
+                play_btn.disabled = false;
+                stop_btn.classList.remove('dp-none');
+            };
+
+            audio.event.load.push(handleLoad);
+
+            if(/android|iphone|ipad/.test(navigator.userAgent.toLowerCase())) {
+                var load_btn = document.querySelector('#load');
+                load_btn.classList.remove('dp-none');
+                load_btn.onclick = function() {
+                    audio.load();
+                    load_btn.classList.add('dp-none');
+                };
+            } else {
+                audio.load();
+            }
+        });
+    </script>
+</body>
+</html>
